@@ -202,7 +202,13 @@ def run_historical_query_pipeline(user_question: str, target_url: str = None):
         vdb_manager.add_historical_stats()
 
     print("\n🔍 Querying local ChromaDB rows for your answer context...")
-    retrieved_stats = vdb_manager.query_similar_context(user_question, n_results=5)
+    retrieved_stats, metadata = vdb_manager.query_similar_context(user_question, n_results=5)
+    
+    # Show sources used for transparency
+    print(f"\n📍 Sources retrieved: {len(metadata)} context blocks")
+    for meta in metadata:
+        source = meta.get('source_url') or meta.get('source', 'unknown')
+        print(f"   - {source}")
 
     prompt = f"""
 ======================================================================
@@ -252,7 +258,13 @@ def run_web_interactive_session(url: str):
             break
 
         print("\n🔍 Querying local ChromaDB rows for your answer context...")
-        retrieved_stats = vdb_manager.query_similar_context(user_question, n_results=5)
+        retrieved_stats, metadata = vdb_manager.query_similar_context(user_question, n_results=5)
+        
+        # Show sources used for transparency
+        print(f"\n📍 Sources retrieved: {len(metadata)} context blocks")
+        for meta in metadata:
+            source = meta.get('source_url') or meta.get('source', 'unknown')
+            print(f"   - {source}")
 
         prompt = f"""
 ======================================================================

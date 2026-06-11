@@ -1,5 +1,8 @@
 from src.ingestion.scraper import F1LiveWebScraper
 import os
+import re
+from typing import List, Tuple
+
 
 class F1VectorStoreManager:
     def __init__(self, db_path: str = "./chroma_db", collection_name: str = "f1_regulations"):
@@ -7,8 +10,8 @@ class F1VectorStoreManager:
         os.makedirs(db_path, exist_ok=True)
 
         try:
-            import chromadb
-            from chromadb.utils import embedding_functions
+            import chromadb     #type: ignore
+            from chromadb.utils import embedding_functions #type: ignore
         except ImportError as exc:
             raise ImportError(
                 "The chromadb package is required to use F1VectorStoreManager. "
@@ -25,37 +28,89 @@ class F1VectorStoreManager:
             embedding_function=self.embedding_fn
         )
 
+    def _extract_keywords(self, text: str) -> List[str]:
+        """Extract important keywords from text for BM25-style matching."""
+        # Remove common words
+        stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'is', 'was', 'be', 'are'}
+        words = re.findall(r'\b\w+\b', text.lower())
+        return [w for w in words if w not in stop_words and len(w) > 2]
+
+    def _bm25_score(self, document: str, query_keywords: List[str]) -> float:
+        """Calculate simple BM25-style score for keyword matching."""
+        doc_keywords = self._extract_keywords(document)
+        score = 0
+        for keyword in query_keywords:
+            if keyword in doc_keywords:
+                # Boost score for exact matches
+                score += doc_keywords.count(keyword) * 2
+        return score
+
+    def _rerank_results(self, results: dict, query: str, top_k: int = 5) -> List[Tuple[str, dict, float]]:
+        """Rerank search results by combining semantic and keyword scores."""
+        documents = results.get("documents", [[]])[0]
+        metadatas = results.get("metadatas", [[]])[0]
+        distances = results.get("distances", [[]])[0]
+        
+        query_keywords = self._extract_keywords(query)
+        ranked = []
+        
+        for i, (doc, meta, distance) in enumerate(zip(documents, metadatas, distances)):
+            # Semantic score (lower distance = better, normalize to 0-1)
+            semantic_score = 1 / (1 + distance)
+            
+            # Keyword score
+            keyword_score = self._bm25_score(doc, query_keywords) / (len(doc) / 100 + 1)
+            
+            # Combined score (weighted)
+            combined_score = (0.6 * semantic_score) + (0.4 * keyword_score)
+            
+            ranked.append((doc, meta, combined_score))
+        
+        # Sort by combined score and return top-k
+        ranked.sort(key=lambda x: x[2], reverse=True)
+        return ranked[:top_k]
+
     def add_documents(self, chunks: list[str], source_name: str):
         """Indexes text chunks into the vector database with unique IDs and metadata."""
         if not chunks:
             return
             
         ids = [f"{source_name}_chunk_{i}" for i in range(len(chunks))]
-        metadatas = [{"source": source_name} for _ in range(len(chunks))]
+        metadatas = [{"source": source_name, "chunk_idx": i} for i, _ in enumerate(chunks)]
         
         self.collection.add(
             documents=chunks,
             ids=ids,
             metadatas=metadatas
         )
-        print(f"Successfully indexed {len(chunks)} chunks from {source_name} into VectorDB.")
+        print(f"✅ Successfully indexed {len(chunks)} chunks from {source_name} into VectorDB.")
 
-    def query_similar_context(self, user_query: str, n_results: int = 3) -> str:
-        """Searches ChromaDB for the most contextually relevant text chunks."""
+    def query_similar_context(self, user_query: str, n_results: int = 5) -> Tuple[str, List[dict]]:
+        """
+        Searches ChromaDB using hybrid search (semantic + keyword matching).
+        Returns combined context and list of metadata for traceability.
+        """
+        # Perform semantic search
         results = self.collection.query(
             query_texts=[user_query],
-            n_results=n_results,
+            n_results=min(n_results * 2, 20),  # Get more results for reranking
             include=["documents", "metadatas", "distances"]
         )
 
-        retrieved_texts = results.get("documents", [[]])[0]
-        metadatas = results.get("metadatas", [[]])[0]
-
-        combined = list(zip(retrieved_texts, metadatas))
-        combined.sort(key=lambda item: 0 if item[1].get("source_url") else 1)
-
-        ordered_texts = [item[0] for item in combined]
-        return "\n\n--- Context Block ---\n".join(ordered_texts)
+        # Rerank using hybrid scoring
+        ranked_results = self._rerank_results(results, user_query, top_k=n_results)
+        
+        if not ranked_results:
+            return "❌ No relevant context found in database.", []
+        
+        # Sort by source preference (live URLs > historical)
+        ranked_results.sort(key=lambda x: (0 if x[1].get("source_url") else 1, -x[2]))
+        
+        # Combine context
+        combined_context = "\n\n--- Context Block ---\n".join([doc for doc, _, _ in ranked_results])
+        metadata_list = [meta for _, meta, _ in ranked_results]
+        
+        return combined_context, metadata_list
     
     def add_historical_stats(self):
         """Seeds historical circuit data into a clean text segment for RAG retrieval."""
@@ -81,7 +136,6 @@ class F1VectorStoreManager:
         - 2022: Sergio Pérez (Red Bull) | 1:24.108
         - 2021: Max Verstappen (Red Bull) | 1:18.149
         """
-        # Keeps your manually seeded text clean
         self.collection.upsert(
             documents=[catalunya_stats.strip()],
             ids=["stats_catalunya"],
@@ -105,12 +159,12 @@ class F1VectorStoreManager:
             return False
             
         # 2. Slice the scraped data into manageable paragraphs
-        chunker = DocumentChunker(chunk_size=800, chunk_overlap=150)
+        chunker = DocumentChunker(chunk_size=500, chunk_overlap=100)
         web_chunks = chunker.chunk_text(raw_web_text)
         
         # 3. Store securely inside our persistent vector database layer
         ids = [f"web_{source_id}_chunk_{i}" for i in range(len(web_chunks))]
-        metadatas = [{"source_url": url} for _ in range(len(web_chunks))]
+        metadatas = [{"source_url": url, "chunk_idx": i} for i, _ in enumerate(web_chunks)]
         
         self.collection.upsert(
             documents=web_chunks,

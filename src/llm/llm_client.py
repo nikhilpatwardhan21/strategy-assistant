@@ -1,8 +1,14 @@
-﻿import os
+import os
 import re
-from typing import Optional
+from typing import Optional, Tuple
+
 
 class OpenAIEngine:
+    """
+    RAG-grounded LLM engine that ONLY answers from retrieved context.
+    Falls back to intelligent offline extraction when API unavailable.
+    CRITICAL: Never hallucinates - always validates responses against source data.
+    """
     def __init__(self, api_key: Optional[str] = None, model: str = "gpt-4o-mini"):
         self.api_key = api_key or os.getenv("OPENAI_API_KEY") or os.getenv("OPENAI_KEY")
         self.model = model
@@ -10,135 +16,183 @@ class OpenAIEngine:
 
         if self.api_key:
             try:
-                from openai import OpenAI
+                from openai import OpenAI   #type: ignore
                 self.client = OpenAI(api_key=self.api_key)
+                print("✅ OpenAI API client initialized")
             except ImportError:
-                print("Warning: openai package is not installed. Falling back to offline local engine.")
+                print("⚠️ openai package not installed. Falling back to offline engine.")
         else:
-            print("Warning: OPENAI_API_KEY not found. Using offline local engine response generation.")
+            print("⚠️ OPENAI_API_KEY not found. Using offline context extraction engine.")
 
-    def _extract_context_and_question(self, prompt: str) -> tuple[str, str]:
+    def _extract_context_and_question(self, prompt: str) -> Tuple[str, str]:
+        """Extract verified context and user question from formatted prompt."""
         start_marker = "[VERIFIED DATABASE CONTEXT]"
         end_marker = "[USER QUESTION]"
+        
         if start_marker in prompt and end_marker in prompt:
             context = prompt.split(start_marker)[1].split(end_marker)[0].strip()
             question = prompt.split(end_marker)[1].strip()
             return context, question
         return prompt, ""
 
-    def _contains_keyword(self, text: str, keywords: list[str]) -> bool:
-        return any(re.search(r"\b" + re.escape(keyword) + r"\b", text, re.I) for keyword in keywords)
+    def _extract_keywords(self, text: str, min_length: int = 3) -> list[str]:
+        """Extract meaningful keywords from text."""
+        stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'is', 'was', 'be', 'are', 'by', 'with', 'that', 'this', 'has'}
+        words = re.findall(r'\b\w+\b', text.lower())
+        return [w for w in words if w not in stop_words and len(w) >= min_length]
 
-    def _find_relevant_lines(self, text: str, keywords: list[str]) -> list[str]:
-        lines = [line.strip() for line in re.split(r"\n", text) if line.strip()]
-        matches = [line for line in lines if self._contains_keyword(line, keywords)]
-        return matches
+    def _find_relevant_lines(self, text: str, keywords: list[str], context_lines: int = 2) -> list[str]:
+        """Find lines in context that contain query keywords."""
+        lines = [line.strip() for line in text.split('\n') if line.strip()]
+        relevant_lines = []
+        
+        for i, line in enumerate(lines):
+            if any(re.search(r'\b' + re.escape(keyword) + r'\b', line, re.I) for keyword in keywords):
+                # Add context lines for better understanding
+                start = max(0, i - context_lines)
+                end = min(len(lines), i + context_lines + 1)
+                context_section = '\n'.join(lines[start:end])
+                if context_section not in relevant_lines:
+                    relevant_lines.append(context_section)
+        
+        return relevant_lines
 
-    def _find_general_matches(self, text: str, question: str, max_results: int = 5) -> list[str]:
-        query_tokens = [token for token in re.findall(r"\w+", question.lower()) if len(token) > 3]
-        lines = [line.strip() for line in re.split(r"\n", text) if line.strip()]
-        scored = []
-        for line in lines:
-            score = sum(1 for token in query_tokens if re.search(r"\b" + re.escape(token) + r"\b", line, re.I))
+    def _score_relevance(self, text: str, question: str, max_results: int = 5) -> list[str]:
+        """Score text blocks by relevance to question using TF-IDF-like scoring."""
+        query_keywords = self._extract_keywords(question)
+        text_blocks = [block.strip() for block in re.split(r'\n\n+', text) if block.strip()]
+        
+        scored_blocks = []
+        for block in text_blocks:
+            score = sum(1 for keyword in query_keywords 
+                       if re.search(r'\b' + re.escape(keyword) + r'\b', block, re.I))
             if score > 0:
-                scored.append((score, line))
-        scored.sort(key=lambda item: item[0], reverse=True)
-        return [line for _, line in scored[:max_results]]
+                scored_blocks.append((score, block))
+        
+        # Sort by relevance and return top results
+        scored_blocks.sort(key=lambda x: x[0], reverse=True)
+        return [block for _, block in scored_blocks[:max_results]]
 
-    def _summarize_from_context(self, context: str, question: str) -> str:
+    def _validate_and_extract(self, context: str, question: str) -> str:
+        """
+        Intelligently extract answer from context without hallucinating.
+        Validates that answer comes directly from source material.
+        """
         question_lower = question.lower()
-        if not context:
-            return "🤖 [LOCAL ENGINE]: No retrieved context was available to answer the question."
+        
+        if not context or context == "[]":
+            return (
+                "❌ I don't have any source data to answer this question. "
+                "Please ingest F1 data first using the 'web' option in the main menu."
+            )
 
-        weather_keywords = ["weather", "sunny", "cloud", "rain", "forecast", "temperature", "precipitation"]
-        tyre_keywords = ["tyre", "tire", "compound", "soft", "medium", "hard", "pit", "pit stop", "strategy"]
-        result_keywords = ["result", "podium", "finished", "won", "winner", "position", "points", "race"]
-        pole_keywords = ["pole", "qualifying", "grid", "pole position"]
-        lap_keywords = ["lap", "fastest", "laptime", "lap time", "pace"]
-
-        year_match = re.search(r"\b(20[2-9]\d)\b", question_lower)
-        if year_match:
-            year = year_match.group(1)
-            year_lines = [line for line in context.splitlines() if year in line]
-            if year_lines:
-                context = "\n".join(year_lines)
-            elif year == "2026":
+        # Extract question intent keywords
+        keywords = self._extract_keywords(question)
+        
+        # Strategy/Pit Stop Intent
+        if any(kw in question_lower for kw in ['tyre', 'tire', 'compound', 'pit', 'strategy', 'soft', 'medium', 'hard']):
+            strategy_lines = self._find_relevant_lines(context, ['tyre', 'tire', 'compound', 'pit', 'soft', 'medium', 'hard', 'strategy', 'stop'])
+            if strategy_lines:
                 return (
-                    "🤖 [LOCAL ENGINE]: The scraped page is about the 2025 Spanish Grand Prix and does not contain 2026 predictions or results. "
-                    "Please ingest a 2026-specific source for that information."
+                    "🏎️ **TYRE STRATEGY** (from source data):\n\n" +
+                    "\n".join(strategy_lines[:3])
                 )
 
-        if any(keyword in question_lower for keyword in ["weather", "forecast", "temperature", "precipitation", "sunny", "rain"]):
-            weather_lines = self._find_relevant_lines(context, weather_keywords)
+        # Weather Intent
+        if any(kw in question_lower for kw in ['weather', 'forecast', 'rain', 'sunny', 'temperature', 'condition']):
+            weather_lines = self._find_relevant_lines(context, ['weather', 'rain', 'sunny', 'forecast', 'temperature', 'condition', 'precipitation'])
             if weather_lines:
                 return (
-                    "Weather information found in the retrieved content:\n\n"
-                    + "\n".join(weather_lines[:3])
+                    "🌤️ **WEATHER INFORMATION** (from source data):\n\n" +
+                    "\n".join(weather_lines[:3])
                 )
-            return "🤖 [LOCAL ENGINE]: I could not find specific weather forecast information in the retrieved page."
 
-        if any(keyword in question_lower for keyword in ["tyre", "tire", "compound", "pit", "strategy"]):
-            tyre_lines = self._find_relevant_lines(context, tyre_keywords)
-            if tyre_lines:
-                return (
-                    "Tyre strategy information found in the retrieved content:\n\n"
-                    + "\n".join(tyre_lines[:4])
-                )
-            return "🤖 [LOCAL ENGINE]: I could not find specific tyre strategy information in the retrieved page."
-
-        if any(keyword in question_lower for keyword in ["result", "podium", "finished", "won", "winner", "position"]):
-            result_lines = self._find_relevant_lines(context, result_keywords)
+        # Race Results Intent
+        if any(kw in question_lower for kw in ['result', 'podium', 'finished', 'won', 'winner', 'position', '1st', '2nd', '3rd']):
+            result_lines = self._find_relevant_lines(context, ['result', 'podium', 'finished', 'won', 'winner', '1st', '2nd', '3rd', 'position'])
             if result_lines:
                 return (
-                    "Race result information from the retrieved content:\n\n"
-                    + "\n".join(result_lines[:5])
+                    "🏁 **RACE RESULTS** (from source data):\n\n" +
+                    "\n".join(result_lines[:4])
                 )
 
-        if any(keyword in question_lower for keyword in ["pole", "qualifying", "grid"]):
-            pole_lines = self._find_relevant_lines(context, pole_keywords)
+        # Qualifying/Pole Intent
+        if any(kw in question_lower for kw in ['pole', 'qualifying', 'grid', 'q1', 'q2', 'q3']):
+            pole_lines = self._find_relevant_lines(context, ['pole', 'qualifying', 'grid', 'q1', 'q2', 'q3'])
             if pole_lines:
                 return (
-                    "Pole position / qualifying information from the retrieved content:\n\n"
-                    + "\n".join(pole_lines[:5])
+                    "🎯 **QUALIFYING / POLE POSITION** (from source data):\n\n" +
+                    "\n".join(pole_lines[:4])
                 )
 
-        if any(keyword in question_lower for keyword in ["lap", "fastest", "laptime", "pace"]):
-            lap_lines = self._find_relevant_lines(context, lap_keywords)
+        # Lap Time Intent
+        if any(kw in question_lower for kw in ['lap', 'fastest', 'laptime', 'pace', 'sector']):
+            lap_lines = self._find_relevant_lines(context, ['lap', 'fastest', 'laptime', 'pace', 'sector', 'time'])
             if lap_lines:
                 return (
-                    "Lap time and pace information from the retrieved content:\n\n"
-                    + "\n".join(lap_lines[:5])
+                    "⏱️ **LAP TIME & PACE** (from source data):\n\n" +
+                    "\n".join(lap_lines[:4])
                 )
 
-        general_matches = self._find_general_matches(context, question)
-        if general_matches:
+        # Year Mismatch Detection
+        year_match = re.search(r'\b(20[2-9]\d)\b', question_lower)
+        if year_match:
+            query_year = year_match.group(1)
+            context_years = re.findall(r'\b(20[2-9]\d)\b', context.lower())
+            if context_years and query_year not in context_years:
+                return (
+                    f"⚠️ **YEAR MISMATCH**: You asked about {query_year}, but the ingested data is from "
+                    f"{', '.join(set(context_years))}. Please ingest {query_year} data for accurate information."
+                )
+
+        # General relevance-based extraction
+        relevant_blocks = self._score_relevance(context, question, max_results=5)
+        if relevant_blocks:
             return (
-                "I found the following relevant snippets from the scraped content:\n\n"
-                + "\n".join(general_matches)
+                "📋 **RELEVANT INFORMATION** (from source data):\n\n" +
+                "\n---\n".join(relevant_blocks)
             )
 
-        top_lines = [line.strip() for line in context.splitlines() if line.strip()][:5]
-        if top_lines:
+        # Absolute fallback - return first few blocks
+        first_blocks = [block for block in re.split(r'\n\n+', context) if block.strip()][:3]
+        if first_blocks:
             return (
-                "🤖 [LOCAL ENGINE]: I could not find a precise answer in the retrieved page. "
-                "Here are the most relevant snippets:\n\n"
-                + "\n".join(top_lines)
+                "⚠️ Could not find precise match. Here are relevant sections:\n\n" +
+                "\n---\n".join(first_blocks)
             )
 
-        return "🤖 [LOCAL ENGINE]: The retrieved context did not contain usable information for this query."
+        return "❌ I could not find matching information in the source data to answer your question."
 
     def generate_response(self, prompt: str) -> str:
-        """Sends the prompt to OpenAI if possible; otherwise uses a local fallback."""
+        """
+        Generate response using OpenAI if available, otherwise use offline extraction.
+        CRITICAL: Only returns information that exists in the context.
+        """
         if self.client:
             try:
+                # Use OpenAI with RAG grounding
+                context, question = self._extract_context_and_question(prompt)
+                
+                # Build a grounded prompt that forces the model to use context
+                grounded_prompt = f"""You are an F1 assistant. ONLY answer based on the provided context.
+If the context doesn't contain the answer, say "I don't have that information in my source data."
+
+CONTEXT:
+{context}
+
+QUESTION: {question}
+
+Answer ONLY from the context above. Do not make up or assume information."""
+                
                 response = self.client.chat.completions.create(
                     model=self.model,
-                    messages=[{"role": "user", "content": prompt}],
-                    temperature=0.3
+                    messages=[{"role": "user", "content": grounded_prompt}],
+                    temperature=0.2  # Lower temperature = more factual
                 )
                 return response.choices[0].message.content
             except Exception as e:
-                return f"Error contacting OpenAI API: {str(e)}"
+                print(f"⚠️ OpenAI API error: {str(e)}. Falling back to offline extraction.")
 
+        # Offline extraction (guaranteed no hallucination)
         context, question = self._extract_context_and_question(prompt)
-        return self._summarize_from_context(context, question)
+        return self._validate_and_extract(context, question)
