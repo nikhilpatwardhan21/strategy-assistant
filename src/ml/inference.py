@@ -1,6 +1,6 @@
-import joblib
-import pandas as pd
-import numpy as np
+import joblib     #type: ignore
+import pandas as pd #type: ignore
+import numpy as np     #type: ignore
 
 class TireDegradationPredictor:
     def __init__(self, model_path="ml_models/tire_deg_model.pkl", features_path="ml_models/model_features.pkl"):

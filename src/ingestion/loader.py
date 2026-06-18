@@ -1,4 +1,4 @@
-import fastf1
+import fastf1    #type: ignore
 
 class F1DataLoader:
     def __init__(self, cache_dir="./f1_cache"):

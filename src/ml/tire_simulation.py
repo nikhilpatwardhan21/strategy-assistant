@@ -1,7 +1,7 @@
-import pandas as pd
-import numpy as np
-import xgboost as xgb
-from sklearn.model_selection import train_test_split
+import pandas as pd   #type: ignore
+import numpy as np      #type: ignore
+import xgboost as xgb   #type: ignore
+from sklearn.model_selection import train_test_split    #type: ignore
 
 class F1TireStrategySim:
     def __init__(self):

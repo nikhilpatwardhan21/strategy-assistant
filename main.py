@@ -1,7 +1,7 @@
 import os
 import sys
-import pandas as pd
-import numpy as np
+import pandas as pd    #type: ignore
+import numpy as np    #type: ignore
 
 # 1. Path Patch: Forces Python to acknowledge your root workspace directory 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
