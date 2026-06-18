@@ -1,5 +1,5 @@
-import requests
-from bs4 import BeautifulSoup
+import requests  #type: ignore
+from bs4 import BeautifulSoup #type: ignore
 
 class F1LiveWebScraper:
     def __init__(self):
@@ -14,7 +14,7 @@ class F1LiveWebScraper:
         try:
             response = requests.get(url, headers=self.headers, timeout=10)
             if response.status_code != 200:
-                print(f"⚠️ Failed to access webpage. HTTP Status: {response.status_code}")
+                print(f" Failed to access webpage. HTTP Status: {response.status_code}")
                 return ""
             
             # Parse the raw HTML markup tree

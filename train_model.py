@@ -1,16 +1,15 @@
 import os
-import fastf1
-import pandas as pd
-import numpy as np
-from sklearn.ensemble import RandomForestRegressor
-import joblib
+import fastf1     # type: ignore
+import pandas as pd # type: ignore
+import numpy as np  # type: ignore
+from sklearn.ensemble import RandomForestRegressor  # type: ignore
+import joblib# type: ignore
 
 print("--- Starting ML Model Training Pipeline ---")
 
 # 1. Setup local folders explicitly before fastf1 can complain
 os.makedirs("ml_models", exist_ok=True)
-os.makedirs("f1_cache", exist_ok=True)  # <-- ADD THIS LINE HERE
-
+os.makedirs("f1_cache", exist_ok=True)  
 fastf1.Cache.enable_cache('./f1_cache')
 
 # 2. Pull actual telemetry data using FastF1 API

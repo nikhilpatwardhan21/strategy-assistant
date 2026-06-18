@@ -190,7 +190,7 @@
 ### Module Interconnections Detail
 
 ```
-┌─────────────────────────────────────────────────────────────┐
+┌──────────────────────────────────────────────────────────── ┐
 │                     main.py (Orchestrator)                   │
 │  - Entry point                                               │
 │  - Menu system                                               │
@@ -215,7 +215,7 @@
     ┌──────▼──────────────┐                      ┌────────▼────────┐
     │ DocumentChunker     │                      │ OpenAIEngine     │
     │ (chunker.py)        │                      │ (llm_client.py)  │
-    │                      │                      │                 │
+    │                      │                      │                │
     │ - chunk_text()      │                      │ - generate_      │
     │ - Semantic splits   │                      │   response()    │
     │ - Overlap context   │                      │ - Intent detect  │
@@ -276,7 +276,7 @@ STEP 3: SCRAPE & INGEST
    └─> Return: cleaned text (e.g., 25,000 characters)
 
 STEP 4: CHUNK INTELLIGENTLY
-   ┌─> DocumentChunker.chunk_text(raw_text)
+   ┌─> DocumentChunker.chunk_text(raw_text)    
    │
    ├─> Split by paragraphs (regex: \n\n+)
    ├─> Combine paragraphs into semantic chunks
@@ -296,7 +296,7 @@ STEP 5: VECTORIZE & STORE
    ├─> ChromaDB Collection.upsert()
    │   ├─> Store documents (text chunks)
    │   ├─> Store embeddings (vector representations)
-   │   ├─> Store metadatas (source info)
+   │   ├─> Store metadatas (source info)     
    │   └─> Create index for fast retrieval
    │
    └─> Persistent storage in chroma_db/
@@ -638,7 +638,7 @@ Session 2: Query from disk (fast, ~0.1s)
 │ The Soft-Medium-Hard strategy maximized pace while managing  │
 │ tire degradation on Barcelona's high-speed layout.           │
 │                                                               │
-│ ======================================================================
+│ ======================================================================     
 │                                                               │
 │ Ask question: quit                                           │
 │                                                               │
