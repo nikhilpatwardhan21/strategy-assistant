@@ -1,308 +1,309 @@
 import os
 import sys
-import pandas as pd    #type: ignore
-import numpy as np    #type: ignore
+import pandas as pd
+import numpy as np
+import logging
 
-# 1. Path Patch: Forces Python to acknowledge your root workspace directory 
+# 1. THE ULTIMATE SILENCE: Completely crush all FastF1 and HTTP logging outputs
+logging.getLogger("fastf1").propagate = False
+logging.getLogger("urllib3").propagate = False
+logging.getLogger("requests").propagate = False
+
+for handler in logging.root.handlers[:]:
+    logging.root.removeHandler(handler)
+
+logging.basicConfig(level=logging.CRITICAL)
+
+import fastf1
+os.makedirs('cache', exist_ok=True)
+fastf1.Cache.enable_cache('cache')
+fastf1.set_log_level('CRITICAL')
+
+# 2. Path Patch
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
+
 def generate_calibrated_telemetry(circuit: str) -> pd.DataFrame:
-    """Generates physically calibrated telemetry mapped to specific F1 circuits."""
     np.random.seed(42)
     records = []
-    
-    # Map the user's circuit input to real-world F1 baseline lap times (in seconds)
     track_baselines = {
-        "monza": 81.0,        # ~1:21.000
-        "silverstone": 87.0,  # ~1:27.000
-        "spa": 104.0,         # ~1:44.000
-        "monaco": 71.0,       # ~1:11.000
-        "bahrain": 91.0       # ~1:31.000
+        "monza": 81.0,        
+        "silverstone": 87.0,  
+        "spa": 104.0,         
+        "monaco": 71.0,       
+        "bahrain": 91.0,
+        "austria": 66.0      # <--- Added Austria Baseline
     }
-    
-    # Default to a standard 85-second track if the user types something unknown
     circuit_key = circuit.strip().lower()
     base_time = track_baselines.get(circuit_key, 85.0)
     
     for _ in range(1500):
         lap = np.random.randint(1, 45)
         fuel = np.random.uniform(5, 100)
-        compound = np.random.randint(1, 4)  # 1: Hard, 2: Medium, 3: Soft
+        compound = np.random.randint(1, 4) 
         track_temp = np.random.uniform(25, 50)
         
-        # Calibrated wear coefficients
-        if compound == 3:    # Soft
+        if compound == 3:    
             wear_factor = (lap ** 1.25) * 0.06
-        elif compound == 2:  # Medium
+        elif compound == 2:  
             wear_factor = (lap ** 1.1) * 0.035
-        else:                # Hard
+        else:                
             wear_factor = (lap ** 0.95) * 0.02
             
         fuel_penalty = (fuel / 10.0) * 0.35
-        
         actual_time = base_time + wear_factor + fuel_penalty + np.random.normal(0, 0.05)
-        
         records.append({
-            'lap_number': lap,
-            'fuel_load_kg': fuel,
-            'compound_type': compound,
-            'track_temp_c': track_temp,
-            'base_lap_time': base_time,
-            'actual_lap_time': actual_time
+            'lap_number': lap, 'fuel_load_kg': fuel, 'compound_type': compound,
+            'track_temp_c': track_temp, 'base_lap_time': base_time, 'actual_lap_time': actual_time
         })
     return pd.DataFrame(records)
 
+
 def run_historical_query_pipeline(user_question: str, target_url: str = None):
     from src.vectordb.vector_store import F1VectorStoreManager
-    """Pipeline designed to answer historical or single-page web questions."""
     vdb_manager = F1VectorStoreManager()
-
     if target_url:
-        print(f"\n🚀 [AUTOMATION ACTIVATED] Live data scraping synchronizer triggered...")
+        print(f"\n🚀 Live data scraping synchronizer triggered...")
         vdb_manager.ingest_live_web_data(url=target_url, source_id="live_feed_ingest")
     else:
         vdb_manager.add_historical_stats()
 
-    print("\n🔍 Querying local ChromaDB rows for your answer context...")
+    print("\n🔍 Querying local ChromaDB rows for context...")
     retrieved_stats, metadata = vdb_manager.query_similar_context(user_question, n_results=5)
+    prompt = f"[VERIFIED DATABASE CONTEXT]\n{retrieved_stats}\n[USER QUESTION]\n{user_question}"
     
-    # Show sources used for transparency
-    print(f"\n📍 Sources retrieved: {len(metadata)} context blocks")
-    for meta in metadata:
-        source = meta.get('source_url') or meta.get('source', 'unknown')
-        print(f"   - {source}")
-
-    prompt = f"""
-======================================================================
-SYSTEM CONTEXT FOR HISTORICAL DATA ANALYST
-======================================================================
-You are an expert F1 Data Analyst. Answer the user's question using ONLY the verified context below.
-Prioritize the content from the scraped page and avoid returning unrelated historical summaries.
-If the requested year or specific prediction information is not present, say so clearly and summarize the nearest relevant information.
-
-[VERIFIED DATABASE CONTEXT]
-{retrieved_stats}
-
-[USER QUESTION]
-{user_question}
-
-Provide a clean, engineering-focused layout response.
-"""
-    
+    if not os.getenv("OPENAI_API_KEY"):
+        print("💡 [OFFLINE MODE] OpenAI key missing. Skipping query response generation.")
+        return {"strategy_briefing": None, "constructed_prompt": prompt}
+        
     from src.llm.llm_client import OpenAIEngine
-    ai_system = OpenAIEngine()
-    response = ai_system.generate_response(prompt)
-    
-    print("\n======================================================================")
-    print("📊 DYNAMIC F1 LIVE ENGINE REPORT")
-    print("======================================================================")
+    response = OpenAIEngine().generate_response(prompt)
+    print("\n" + "="*55 + "\n📊 DYNAMIC F1 LIVE ENGINE REPORT\n" + "="*55)
     print(response)
-    print("======================================================================\n")
+    print("="*55 + "\n")
     return {"strategy_briefing": response, "constructed_prompt": prompt}
+
 
 def run_web_interactive_session(url: str):
     from src.vectordb.vector_store import F1VectorStoreManager
-    from src.llm.llm_client import OpenAIEngine
-
     vdb_manager = F1VectorStoreManager()
-    print(f"\n🚀 [AUTOMATION ACTIVATED] Live data scraping synchronizer triggered for: {url}")
+    print(f"\n🚀 Ingesting live data from target URL...")
     vdb_manager.ingest_live_web_data(url=url, source_id="live_feed_ingest")
-    print("\n✅ Live page indexed. You can now ask multiple questions about this content.")
-    print("Type 'quit' or 'exit' to stop the session.")
+    print("\n✅ Live page indexed. Ask your questions below (Type 'exit' to stop).")
 
-    ai_system = OpenAIEngine()
     while True:
-        user_question = input("\nAsk a question about the scraped page: ").strip()
-        if not user_question:
-            continue
-        if user_question.lower() in {"quit", "exit", "q"}:
-            print("\n👋 Ending the interactive web session.")
-            break
+        user_question = input("\n🎙️ Ask a question: ").strip() 
+        if not user_question: continue
+        if user_question.lower() in {"quit", "exit", "q"}: break
 
-        print("\n🔍 Querying local ChromaDB rows for your answer context...")
-        retrieved_stats, metadata = vdb_manager.query_similar_context(user_question, n_results=5)
+        retrieved_stats, _ = vdb_manager.query_similar_context(user_question, n_results=5)
+        prompt = f"Using context: {retrieved_stats}\nAnswer: {user_question}"
         
-        # Show sources used for transparency
-        print(f"\n📍 Sources retrieved: {len(metadata)} context blocks")
-        for meta in metadata:
-            source = meta.get('source_url') or meta.get('source', 'unknown')
-            print(f"   - {source}")
+        if not os.getenv("OPENAI_API_KEY"):
+            print("💡 [OFFLINE MODE] OpenAI API key missing.")
+            continue
+            
+        from src.llm.llm_client import OpenAIEngine
+        print("\n" + "="*55)
+        print(OpenAIEngine().generate_response(prompt))
+        print("="*55)
 
-        prompt = f"""
-======================================================================
-SYSTEM CONTEXT FOR LIVE WEB DATA ANALYST
-======================================================================
-You are an expert F1 Data Analyst. Answer the user's question using ONLY the verified context below.
-Prioritize the content from the scraped page and avoid returning unrelated historical summaries.
-If the requested prediction or strategy detail is not present, state that clearly and summarize the nearest relevant information.
-
-[VERIFIED DATABASE CONTEXT]
-{retrieved_stats}
-
-[USER QUESTION]
-{user_question}
-
-Provide a clean, engineering-focused layout response.
-"""
-
-        response = ai_system.generate_response(prompt)
-        print("\n======================================================================")
-        print("📊 DYNAMIC F1 LIVE ENGINE REPORT")
-        print("======================================================================")
-        print(response)
-        print("======================================================================")
-
-    return
 
 def run_strategy_pipeline(circuit: str, current_lap: int, compound_choice: str, target_stint: int):
-    """Our updated ML tire simulation pipeline driven by live XGBoost calibration."""
-    print(f"\n--- [STRATEGY ENGINE] Analyzing Scenario for {circuit} ---")
-
-    from src.ingestion.loader import F1DataLoader
-    from src.vectordb.vector_store import F1VectorStoreManager
+    """Original single-stint telemetry pipeline."""
+    print(f"\n🏎️  [STRATEGY ENGINE] Loading race profile for {circuit.upper()}...")
     from src.ml.tire_simulation import F1TireStrategySim 
 
-    loader = F1DataLoader()
-    try:
-        weather_ctx = loader.get_live_track_conditions(2026, circuit)
-        print(f"Track Status: Temp is {weather_ctx['TrackTemp']}°C | Ambient is {weather_ctx['AirTemp']}°C")
-    except Exception:
-        weather_ctx = {"TrackTemp": 26.2, "AirTemp": 16.0, "Rainfall": False}
-        print("Track Status: Using baseline track telemetry (26.2°C)")
+    track_baselines = {
+        "monza": 81.0, "silverstone": 87.0, "spa": 104.0, 
+        "monaco": 71.0, "bahrain": 91.0, "yas marina circuit abu dhabi": 86.5,
+        "austria": 66.0  # <--- Added Austria Baseline
+    }
+    sim_base_time = track_baselines.get(circuit.strip().lower(), 85.0)
 
-    print(f"⚙️  Training live XGBoost Engine on Calibrated F1 Physics for {circuit}...")
+    print(f"⚙️  Training live XGBoost Engine on 2026 Calibrated F1 Physics for {circuit}...")
     ml_engine = F1TireStrategySim()
-    
-    # Pass the circuit name into the generator
-    training_data = generate_calibrated_telemetry(circuit) 
+    training_data = ml_engine.generate_2026_training_data(base_times=track_baselines, samples=15000) 
     ml_engine.train(training_data)
 
-    # Map the string input to the integer the model expects
     compound_map = {"SOFT": 3, "MEDIUM": 2, "HARD": 1}
     compound_int = compound_map.get(compound_choice.upper(), 2)
 
-    # Determine the correct base time for the simulation execution
-    track_baselines = {"monza": 81.0, "silverstone": 87.0, "spa": 104.0, "monaco": 71.0, "bahrain": 91.0}
-    sim_base_time = track_baselines.get(circuit.strip().lower(), 85.0)
-
-    # Execute model simulation
     sim_df = ml_engine.simulate_stint(
-        base_lap_time=sim_base_time, 
-        starting_fuel_kg=95.0,
-        compound=compound_int,
-        track_temp=weather_ctx['TrackTemp'],
-        laps=target_stint
+        base_lap_time=sim_base_time, starting_fuel_kg=95.0, compound=compound_int,
+        track_temp=30.0, laps=target_stint, push_laps=[14, 15, 16] 
     )
     
-    # Format structural outputs precisely
-    predictions = []
+    print("\n" + "═"*70)
+    print(f"📊 ML TELEMETRY STINT FORECAST: {circuit.upper()} ({compound_choice.upper()})")
+    print("═"*70)
+    print(f"{'Lap':<5} │ {'Raw Time (s)':<15} │ {'Standard Time':<15} │ {'ERS Deployment Mode':<20}")
+    print("─" * 70) 
+    
     for _, row in sim_df.iterrows():
-        predictions.append({
-            'Lap': int(row['lap_number']),
-            'PredictedLapTime': round(float(row['predicted_lap_time']), 3)
-        })
-    
-    # --- BUILD CLEAN TERMINAL TABLE AND LLM STRING ---
-    print("\n" + "="*55)
-    print(f"📊 ML TIRE DEGRADATION FORECAST: {circuit.upper()} ({compound_choice.upper()})")
-    print("="*55)
-    print(f"{'Lap':<5} | {'Raw Time (s)':<15} | {'Standard Time':<15}")
-    print("-" * 55)
-    
-    formatted_predictions_str = f"{'Lap':<5} | {'Raw Time (s)':<15} | {'Standard Time':<15}\n" + ("-" * 55) + "\n"
-    
-    for row in predictions:
-        lap = current_lap + row['Lap'] - 1  # Align with current lap
-        raw_s = row['PredictedLapTime']
+        lap = current_lap + int(row['lap_number']) - 1  
+        raw_s = float(row['predicted_lap_time'])
+        ers_mode = row['ers_mode']
+        mins, secs = int(raw_s // 60), raw_s % 60
+        print(f"{lap:<5} │ {raw_s:<15.3f} │ {mins}:{secs:06.3f} │ {ers_mode:<20}")
         
-        # Convert raw seconds into F1 Minutes:Seconds format
-        mins = int(raw_s // 60)
-        secs = raw_s % 60
-        standard_time = f"{mins}:{secs:06.3f}"
+    print("═"*70 + "\n")
+    if not os.getenv("OPENAI_API_KEY"):
+        print("💡 [OFFLINE MODE] OpenAI API key not found. Skipping live AI briefing.\n")
+
+
+# ==============================================================================
+# NEW 2026 MULTI-STINT RACE ORCHESTRATOR
+# ==============================================================================
+def run_race_pipeline(circuit: str):
+    """Full-race Pitstop Orchestrator using 2026 Regs (No edits to src folder needed)."""
+    print(f"\n🏎️  [RACE ORCHESTRATOR] Loading full race profile for {circuit.upper()}...")
+    from src.ml.tire_simulation import F1TireStrategySim 
+
+    track_baselines = {
+        "monza": 81.0, "silverstone": 87.0, "spa": 104.0, 
+        "monaco": 71.0, "bahrain": 91.0, "yas marina": 86.5,
+        "austria": 66.0
+    }
+    
+    circuit_key = circuit.strip().lower()
+    sim_base_time = track_baselines.get(circuit_key, 85.0)
+    
+    print(f"⚙️  Training live XGBoost Engine on 2026 F1 Physics for {circuit}...")
+    ml_engine = F1TireStrategySim()
+    training_data = ml_engine.generate_2026_training_data(base_times=track_baselines, samples=15000) 
+    ml_engine.train(training_data)
+
+    # 1. 2026 Strategy Configuration (Austria Default = 2-Stop)
+    if circuit_key == "austria":
+        strategy_plan = [(3, 18), (2, 27), (2, 26)] # Soft(18) -> Medium(27) -> Medium(26)
+        pit_loss = 20.5
+        track_temp = 38.0
+        print(f"\n🏁 STRATEGY LOADED: AUSTRIA (71 Laps | 2-Stop: S->M->M | {pit_loss}s Pit Loss)")
+    else:
+        strategy_plan = [(2, 20), (1, 35)] # Generic 1-Stop fallback
+        pit_loss = 22.0
+        track_temp = 30.0
+        print(f"\n🏁 STRATEGY LOADED: {circuit.upper()} (55 Laps | 1-Stop: M->H | {pit_loss}s Pit Loss)")
+
+    # 2. Seamlessly Chain Stints Together
+    current_fuel = 95.0
+    race_dfs = []
+    
+    for stint_idx, (compound_int, stint_laps) in enumerate(strategy_plan):
         
-        # Print to terminal
-        row_str = f"{lap:<5} | {raw_s:<15.3f} | {standard_time:<15}"
-        print(row_str)
+        # 2026 Tactics: Trigger 350kW Undercut Boosts on In-Laps and Out-Laps
+        push_laps = []
+        if stint_idx < len(strategy_plan) - 1:
+            push_laps.append(stint_laps) # Boost before pitting
+        if stint_idx > 0:
+            push_laps.append(1) # Boost leaving the pits
+            
+        stint_df = ml_engine.simulate_stint(
+            base_lap_time=sim_base_time, starting_fuel_kg=current_fuel,
+            compound=compound_int, track_temp=track_temp, laps=stint_laps, push_laps=push_laps
+        )
         
-        # Save to string for the AI prompt
-        formatted_predictions_str += row_str + "\n"
+        # 3. Inject the physical pit-lane time penalty
+        stint_df['is_pit_lap'] = False
+        if stint_idx > 0:
+            stint_df.at[0, 'predicted_lap_time'] += pit_loss
+            stint_df.at[0, 'is_pit_lap'] = True
+            
+        stint_df['stint_number'] = stint_idx + 1
+        stint_df['compound_name'] = {3: 'SOFT', 2: 'MEDIUM', 1: 'HARD'}[compound_int]
+        race_dfs.append(stint_df)
         
-    print("="*55 + "\n")
+        # Lower fuel weight for the next stint (Austria ~1.35kg per lap)
+        current_fuel = max(0.0, current_fuel - (1.35 * stint_laps))
+
+    # 4. Compile the full 71-lap dataset
+    full_race_df = pd.concat(race_dfs, ignore_index=True)
+    full_race_df['overall_lap'] = range(1, len(full_race_df) + 1)
+
+    # 5. Output Sleek Executive Summary
+    total_race_time = full_race_df['predicted_lap_time'].sum()
+    total_mins = int(total_race_time // 60)
+    total_secs = total_race_time % 60
+    hours = total_mins // 60
+    rem_mins = total_mins % 60
     
-    vdb_manager = F1VectorStoreManager()
-    query = "What rules apply to tire changes under a Safety Car?"
-    regulatory_rules = vdb_manager.query_similar_context(query, n_results=1)
+    def format_time(raw_s):
+        """Helper to format seconds into M:SS.mmm"""
+        return f"{int(raw_s // 60)}:{raw_s % 60:06.3f}"
+
+    compound_colors = {'SOFT': '🔴', 'MEDIUM': '🟡', 'HARD': '⚪'}
+    strategy_str = " ➔ ".join([f"{compound_colors[{3: 'SOFT', 2: 'MEDIUM', 1: 'HARD'}[c]]} { {3: 'SOFT', 2: 'MEDIUM', 1: 'HARD'}[c] }" for c, _ in strategy_plan])
+    stops = len(strategy_plan) - 1
+
+    print("\n" + "═"*75)
+    print(f"🏆 2026 STRATEGY SUMMARY: {circuit.upper()} ({len(full_race_df)} Laps)")
+    print("═"*75)
+    print(f"⏱️  PROJECTED RACE TIME : {hours}h {rem_mins}m {total_secs:.3f}s")
+    print(f"🔄 STRATEGY PLAN      : {stops}-Stop [{strategy_str}]")
+    print("─" * 75)
+
+    # Group by Stint for a clean summary
+    for stint_idx in full_race_df['stint_number'].unique():
+        stint_data = full_race_df[full_race_df['stint_number'] == stint_idx]
+        
+        start_lap = stint_data['overall_lap'].min()
+        end_lap = stint_data['overall_lap'].max()
+        laps_count = len(stint_data)
+        compound = stint_data['compound_name'].iloc[0]
+        color = compound_colors.get(compound, '')
+        
+        # Calculate true pace (ignoring the slow pit lane lap and the fast ERS boost lap)
+        clean_laps = stint_data[(stint_data['is_pit_lap'] == False) & (stint_data['ers_mode'] != 'Boost (350kW)')]
+        
+        if not clean_laps.empty:
+            avg_pace = clean_laps['predicted_lap_time'].mean()
+            start_pace = clean_laps['predicted_lap_time'].iloc[0]  # Fresh tires
+            end_pace = clean_laps['predicted_lap_time'].iloc[-1]   # Old tires
+        else:
+            avg_pace = start_pace = end_pace = stint_data['predicted_lap_time'].mean()
+            
+        print(f"\n▶ [ STINT {stint_idx} ] Laps {start_lap}-{end_lap} ({laps_count} Laps) | {color} {compound}")
+        print(f"  ├─ Avg Pace   : {format_time(avg_pace)}")
+        print(f"  ├─ Tire Drop  : {format_time(start_pace)} ➔ {format_time(end_pace)} (Degradation + Fuel Burn)")
+        
+        # Highlight strategic actions
+        if stint_idx < len(strategy_plan): # If not the final stint
+             print(f"  └─ ⚡ Lap {end_lap}: 350kW Undercut Boost Activated (In-Lap)")
+             
+             next_compound = full_race_df[full_race_df['stint_number'] == stint_idx + 1]['compound_name'].iloc[0]
+             next_color = compound_colors.get(next_compound, '')
+             print(f"\n  🔧 PIT STOP {stint_idx} (Lap {end_lap + 1}) | +{pit_loss}s Time Loss | Fitted {next_color} {next_compound}")
+
+    print("\n🏁 CHECKERED FLAG")
+    print("═"*75 + "\n")
+
+
+# ==============================================================================
+# MAIN CLI MENU & EXECUTION BLOCK
+# ==============================================================================
+def main():
+    print("\n" + "═"*70)
+    print("🏎️   F1 STRATEGY & ANCHOR RAG ENGINE")
+    print("═"*70)
+    print(" [sim]  Run Single-Stint ML Telemetry Simulation")
+    print(" [race] Run Full-Race Strategy Orchestrator (2026 Pitstops)")
+    print(" [web]  Trigger Live Automated Data Ingestion")
+    print("─" * 70)
     
-    prompt = f"""
-======================================================================
-SYSTEM CONTEXT FOR RACE STRATEGIST AI
-======================================================================
-You are the Lead Race Strategist for Scuderia Ferrari. Analyze the following race scenario:
-
-[LIVE TELEMETRY DATA]
-Circuit: {circuit}
-Track Temperature: {weather_ctx['TrackTemp']}°C
-Current Strategic Lap Marker: Lap {current_lap}
-
-[ML MODEL DEGRADATION SIMULATIONS]
-Target Compound Evaluation: {compound_choice.upper()}
-Predicted Lap-by-Lap Times over the next {target_stint} laps:
-
-{formatted_predictions_str}
-
-[RETRIEVED FIA SPORTING CODES]
-{regulatory_rules}
-
-======================================================================
-INSTRUCTIONS
-======================================================================
-Write a highly concise technical race strategy brief for the team principal. 
-1. Evaluate the tire degradation slope shown in the ML metrics.
-2. Cross-reference the retrieved FIA rules to confirm if a pitstop execution under these conditions is legal and strategically optimal.
-3. Keep it engineering-focused and brief.
-"""
+    mode = input("👉 Select mode: ").strip().lower()
     
-    from src.llm.llm_client import OpenAIEngine
-    ai_system = OpenAIEngine()
-    briefing = ai_system.generate_response(prompt)
-    
-    print("\n======================================================================")
-    print("FINAL RACE STRATEGY BRIEF GENERATED BY AI")
-    print("======================================================================")
-    print(briefing)
-    print("======================================================================\n")
-    return {"simulation_data": predictions, "strategy_briefing": briefing, "constructed_prompt": prompt}
+    if mode == 'sim':
+        circuit = input("📍 Target Circuit (Try 'Austria'): ").strip()
+        run_strategy_pipeline(circuit, current_lap=1, compound_choice="MEDIUM", target_stint=15)
+    elif mode == 'race':
+        circuit = input("📍 Target Circuit (Try 'Austria'): ").strip()
+        run_race_pipeline(circuit)
+    elif mode == 'web':
+        url = input("🌐 Enter F1 live URL: ").strip()
+        run_web_interactive_session(url)
+    else:
+        print("❌ Invalid mode selected. Please run the script again and type 'sim', 'race', or 'web'.")
 
 if __name__ == "__main__":
-    print("======================================================================")
-    print("🏎️  WELCOME TO THE F1 INTERACTIVE ENGINE  🏎️")
-    print("======================================================================")
-    print("Options:")
-    print("1. Type 'sim' to run an ML Tire Degradation Simulation Strategy.")
-    print("2. Type 'web' to run the automated background live web ingestion.")
-    print("----------------------------------------------------------------------")
-    
-    user_choice = input("What would you like to do? (Type 'sim' or 'web'): ").strip().lower()
-    
-    if user_choice == 'sim':
-        circuit_input = input("Enter Circuit Name: ").strip()
-        try:
-            lap_input = int(input("Enter Current Lap Number (e.g., 1): "))
-        except ValueError:
-            lap_input = 1
-        try:
-            raw_stint = input("Enter Simulation Stint Length (Number of Laps): ")
-            stint_input = int(float(raw_stint))
-        except ValueError:
-            stint_input = 12
-        compound_input = input("Enter Target Compound (SOFT/MEDIUM/HARD): ").strip().upper()
-        run_strategy_pipeline(circuit_input, lap_input, compound_input, stint_input)
-        
-    elif user_choice == 'web':
-        default_url = "https://www.formula1.com/en/results/2026/races"
-        run_web_interactive_session(default_url)
-        
-    else:
-        print("⚠️ Invalid menu selection. Closing pipeline.")
-        
-    print("\n--- Pipeline Execution Completed Successfully ---")
+    main()
