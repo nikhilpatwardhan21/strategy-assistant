@@ -65,7 +65,7 @@ class OpenAIEngine:
         scored_blocks = []
         for block in text_blocks:
             score = sum(1 for keyword in query_keywords 
-                       if re.search(r'\b' + re.escape(keyword) + r'\b', block, re.I))
+                    if re.search(r'\b' + re.escape(keyword) + r'\b', block, re.I))
             if score > 0:
                 scored_blocks.append((score, block))
         
