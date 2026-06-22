@@ -124,11 +124,11 @@
 
 import os
 import sys
-import pandas as pd
-import numpy as np
+import pandas as pd    #type:ignore
+import numpy as np  #type:ignore
 import logging
-import fastf1
 
+import fastf1        #type:ignore
 # 1. THE ULTIMATE SILENCE
 logging.getLogger("fastf1").propagate = False
 logging.getLogger("urllib3").propagate = False

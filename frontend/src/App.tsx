@@ -103,11 +103,11 @@ export default function App() {
               <>
                 <span className="relative z-10 text-white">Calculating Strategy...</span>
                 <div className="absolute inset-0 z-0 opacity-20 pointer-events-none" 
-                     style={{ 
-                       backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 10px, #ffffff 10px, #ffffff 20px)',
-                       backgroundSize: '28px 28px',
-                       animation: 'moveStripes 1s linear infinite' 
-                     }}>
+                      style={{ 
+                        backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 10px, #ffffff 10px, #ffffff 20px)',
+                        backgroundSize: '28px 28px',
+                        animation: 'moveStripes 1s linear infinite' 
+                      }}>
                 </div>
                 <style>{`
                   @keyframes moveStripes {

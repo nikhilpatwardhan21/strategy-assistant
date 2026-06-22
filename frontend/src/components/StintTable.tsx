@@ -1,4 +1,4 @@
-import React from 'react';
+// import React from 'react';  //type:ignore
 
 // Helper function to color-code the tire compounds
 const getTireBadge = (compound: string) => {
