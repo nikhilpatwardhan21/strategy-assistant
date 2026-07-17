@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import StintTable from './components/StintTable';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
 // 1. F1 Team Livery Configuration
 interface Livery {
   id: string;
@@ -108,7 +110,7 @@ export default function App() {
   useEffect(() => {
     const checkApi = async () => {
       try {
-        await axios.post('http://localhost:8000/simulate', { circuit: 'Italian GP', strategy: 'M:21,H:32' });
+        await axios.post(`${API_BASE_URL}/simulate`, { circuit: 'Italian GP', strategy: 'M:21,H:32' });
         setApiOnline(true);
       } catch (err) {
         console.warn("Backend server not responding yet:", err);
@@ -123,7 +125,7 @@ export default function App() {
     const fetchStandings = async () => {
       setStandingsLoading(true);
       try {
-        const response = await axios.get('http://localhost:8000/standings');
+        const response = await axios.get(`${API_BASE_URL}/standings`);
         if (response.data.status === 'success') {
           setStandings(response.data.data);
         }
@@ -140,7 +142,7 @@ export default function App() {
     const autoSim = async () => {
       setLoading(true);
       try {
-        const response = await axios.post(`http://localhost:8000/simulate`, {
+        const response = await axios.post(`${API_BASE_URL}/simulate`, {
           circuit: 'Italian GP',
           strategy: 'M:21,H:32'
         });
@@ -243,7 +245,7 @@ export default function App() {
     const strategyString = stints.map(s => `${s.compound.charAt(0)}:${s.laps}`).join(',');
 
     try {
-      const response = await axios.post(`http://localhost:8000/simulate`, {
+      const response = await axios.post(`${API_BASE_URL}/simulate`, {
         circuit: selectedCircuit.name, // sends GP Name
         strategy: strategyString
       });
@@ -261,7 +263,7 @@ export default function App() {
       }
     } catch (err) {
       console.error("Connection error:", err);
-      setError("Unable to connect to the simulation engine. Verify FastAPI is online on port 8000.");
+      setError(`Unable to connect to the simulation engine. Verify the backend is online at ${API_BASE_URL}.`);
       setApiOnline(false);
     }
     setLoading(false);
@@ -274,7 +276,7 @@ export default function App() {
     setIngesting(true);
     setIngestStatus('SCRAPING WEB TEXT...');
     try {
-      const response = await axios.post('http://localhost:8000/ingest', { url: urlInput });
+      const response = await axios.post(`${API_BASE_URL}/ingest`, { url: urlInput });
       if (response.data.status === 'success') {
         setIngestStatus('✅ INGESTION & VECTORIZATION COMPLETE');
         setUrlInput('');
@@ -300,7 +302,7 @@ export default function App() {
     setChatHistory(prev => [...prev, { role: 'user', text: question }]);
     
     try {
-      const response = await axios.post('http://localhost:8000/query', { question });
+      const response = await axios.post(`${API_BASE_URL}/query`, { question });
       if (response.data.status === 'success') {
         setChatHistory(prev => [...prev, { 
           role: 'assistant', 
