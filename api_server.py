@@ -25,6 +25,14 @@ try:
 except Exception as e:
     print(f"⚠️ Warning: Failed to auto-seed historical stats: {e}")
 
+@app.get("/")
+async def root():
+    return {
+        "status": "online",
+        "message": "F1 Strategy & Anchor RAG Engine is running!",
+        "version": "2.0"
+    }
+
 @app.post("/simulate")
 async def simulate(data: dict):
     # Extracts circuit and strategy from the React request
