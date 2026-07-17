@@ -1,1 +1,97 @@
 @import "tailwindcss";
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Orbitron:wght@600;700;800;900&family=Outfit:wght@400;600;700;800;900&family=Share+Tech+Mono&display=swap');
+
+@theme {
+  --color-f1-red: #e10600;
+  --color-f1-dark: #05070a;
+  --color-f1-card: rgba(10, 15, 26, 0.45);
+  --color-f1-border: rgba(30, 41, 59, 0.45);
+  
+  --font-sans: 'Inter', sans-serif;
+  --font-display: 'Outfit', sans-serif;
+  --font-telemetry: 'Orbitron', sans-serif;
+  --font-mono: 'Share Tech Mono', monospace;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #030407;
+  color: #f1f5f9;
+  font-family: 'Inter', sans-serif;
+  overflow: hidden;
+}
+
+/* Custom Telemetry Grid Background */
+.f1-grid-bg {
+  background-color: #030407;
+  background-image: 
+    linear-gradient(rgba(225, 6, 0, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(225, 6, 0, 0.02) 1px, transparent 1px);
+  background-size: 30px 30px;
+}
+
+/* Glassmorphism Panels */
+.glass-panel {
+  background: rgba(10, 15, 30, 0.6);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-panel:hover {
+  border-color: rgba(255, 255, 255, 0.09);
+  box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.5);
+}
+
+/* F1 Leaderboard/Stripes */
+.racing-stripe {
+  background: repeating-linear-gradient(
+    -45deg,
+    rgba(255, 255, 255, 0.05),
+    rgba(255, 255, 255, 0.05) 5px,
+    transparent 5px,
+    transparent 10px
+  );
+}
+
+/* Custom Scrollbars */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Glowing text */
+.glow-text-red {
+  text-shadow: 0 0 8px rgba(225, 6, 0, 0.6);
+}
+
+/* Ambient BG Orbs */
+.glow-orb {
+  position: absolute;
+  width: 500px;
+  height: 500px;
+  border-radius: 50%;
+  filter: blur(140px);
+  opacity: 0.15;
+  pointer-events: none;
+  z-index: 0;
+  transition: all 1s ease;
+}
+
+/* Marquee animation */
+@keyframes marquee {
+  0% { transform: translate3d(0, 0, 0); }
+  100% { transform: translate3d(-50%, 0, 0); }
+}
+
+.animate-marquee {
+  display: inline-block;
+  animation: marquee 25s linear infinite;
+}

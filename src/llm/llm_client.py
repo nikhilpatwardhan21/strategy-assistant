@@ -74,10 +74,7 @@ class OpenAIEngine:
         return [block for _, block in scored_blocks[:max_results]]
 
     def _validate_and_extract(self, context: str, question: str) -> str:
-        """
-        Intelligently extract answer from context without hallucinating.
-        Validates that answer comes directly from source material.
-        """
+        
         question_lower = question.lower()
         
         if not context or context == "[]":
@@ -164,10 +161,7 @@ class OpenAIEngine:
         return "❌ I could not find matching information in the source data to answer your question."
 
     def generate_response(self, prompt: str) -> str:
-        """
-        Generate response using OpenAI if available, otherwise use offline extraction.
-        CRITICAL: Only returns information that exists in the context.
-        """
+        
         if self.client:
             try:
                 # Use OpenAI with RAG grounding

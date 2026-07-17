@@ -3,7 +3,6 @@ from bs4 import BeautifulSoup #type: ignore
 
 class F1LiveWebScraper:
     def __init__(self):
-        # We define headers so the official servers recognize the script as a valid browser request
         self.headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }

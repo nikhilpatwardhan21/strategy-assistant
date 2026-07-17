@@ -111,7 +111,7 @@ class F1VectorStoreManager:
             1. Michael Schumacher (7 Titles: 1994, 1995, 2000, 2001, 2002, 2003, 2004)
             2. Lewis Hamilton (7 Titles: 2008, 2014, 2015, 2017, 2018, 2019, 2020)
             3. Juan Manuel Fangio (5 Titles: 1951, 1954, 1955, 1956, 1957)
-            4. Max Verstappen (5 Titles: 2021, 2022, 2023, 2024, 2025)
+            4. Max Verstappen (5 Titles: 2021, 2022, 2023, 2024)
             5. Alain Prost (4 Titles: 1985, 1986, 1989, 1993)
             6. Sebastian Vettel (4 Titles: 2010, 2011, 2012, 2013)
             7. Jack Brabham, Jackie Stewart, Niki Lauda, Nelson Piquet, Ayrton Senna (3 Titles each)
