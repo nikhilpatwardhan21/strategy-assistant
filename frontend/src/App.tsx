@@ -52,6 +52,44 @@ const CIRCUITS: Circuit[] = [
   { id: 'interlagos', name: 'Brazilian GP', displayName: 'Interlagos', country: 'Brazil', laps: 71, length: '4.309 km', type: 'Elevation / Short', flag: '🇧🇷', temp: 27, path: 'M 35 80 L 15 48 L 45 15 L 85 15 L 85 55 L 60 80 Z' }
 ];
 
+interface ScheduleRound {
+  round: number;
+  name: string;
+  location: string;
+  date: string;
+  flag: string;
+  status: 'Completed' | 'Postponed' | 'Live' | 'Upcoming';
+  circuitId?: string;
+  length: string;
+  laps: number;
+}
+
+const OFFICIAL_2026_SCHEDULE: ScheduleRound[] = [
+  { round: 1, name: 'Australian GP', location: 'Melbourne, Australia', date: '6-8 Mar', flag: '🇦🇺', status: 'Completed', circuitId: 'melbourne', length: '5.278 km', laps: 58 },
+  { round: 2, name: 'Chinese GP', location: 'Shanghai, China', date: '13-15 Mar', flag: '🇨🇳', status: 'Completed', length: '5.451 km', laps: 56 },
+  { round: 3, name: 'Japanese GP', location: 'Suzuka, Japan', date: '27-29 Mar', flag: '🇯🇵', status: 'Completed', circuitId: 'suzuka', length: '5.807 km', laps: 53 },
+  { round: 4, name: 'Bahrain GP', location: 'Sakhir, Bahrain', date: '10-12 Apr', flag: '🇧🇭', status: 'Postponed', circuitId: 'bahrain', length: '5.412 km', laps: 57 },
+  { round: 5, name: 'Saudi Arabian GP', location: 'Jeddah, Saudi Arabia', date: '17-19 Apr', flag: '🇸🇦', status: 'Postponed', length: '6.174 km', laps: 50 },
+  { round: 6, name: 'Miami GP', location: 'Miami, USA', date: '1-3 May', flag: '🇺🇸', status: 'Completed', length: '5.412 km', laps: 57 },
+  { round: 7, name: 'Canadian GP', location: 'Montreal, Canada', date: '22-24 May', flag: '🇨🇦', status: 'Completed', length: '4.361 km', laps: 70 },
+  { round: 8, name: 'Monaco GP', location: 'Monte Carlo, Monaco', date: '5-7 Jun', flag: '🇲🇨', status: 'Completed', circuitId: 'monaco', length: '3.337 km', laps: 78 },
+  { round: 9, name: 'Spanish GP', location: 'Barcelona, Spain', date: '12-14 Jun', flag: '🇪🇸', status: 'Completed', length: '4.657 km', laps: 66 },
+  { round: 10, name: 'Austrian GP', location: 'Spielberg, Austria', date: '26-28 Jun', flag: '🇦🇹', status: 'Completed', length: '4.318 km', laps: 71 },
+  { round: 11, name: 'British GP', location: 'Silverstone, UK', date: '3-5 Jul', flag: '🇬🇧', status: 'Completed', circuitId: 'silverstone', length: '5.891 km', laps: 52 },
+  { round: 12, name: 'Belgian GP', location: 'Spa-Francorchamps, Belgium', date: '17-19 Jul', flag: '🇧🇪', status: 'Live', circuitId: 'spa', length: '7.004 km', laps: 44 },
+  { round: 13, name: 'Hungarian GP', location: 'Budapest, Hungary', date: '24-26 Jul', flag: '🇭🇺', status: 'Upcoming', length: '4.381 km', laps: 70 },
+  { round: 14, name: 'Dutch GP', location: 'Zandvoort, Netherlands', date: '21-23 Aug', flag: '🇳🇱', status: 'Upcoming', circuitId: 'zandvoort', length: '4.259 km', laps: 72 },
+  { round: 15, name: 'Italian GP', location: 'Monza, Italy', date: '4-6 Sep', flag: '🇮🇹', status: 'Upcoming', circuitId: 'monza', length: '5.793 km', laps: 53 },
+  { round: 16, name: 'Azerbaijan GP', location: 'Baku, Azerbaijan', date: '24-26 Sep', flag: '🇦🇿', status: 'Upcoming', length: '6.003 km', laps: 51 },
+  { round: 17, name: 'Singapore GP', location: 'Marina Bay, Singapore', date: '9-11 Oct', flag: '🇸🇬', status: 'Upcoming', circuitId: 'singapore', length: '4.940 km', laps: 62 },
+  { round: 18, name: 'United States GP', location: 'Austin, USA', date: '23-25 Oct', flag: '🇺🇸', status: 'Upcoming', length: '5.513 km', laps: 56 },
+  { round: 19, name: 'Mexican GP', location: 'Mexico City, Mexico', date: '30 Oct-1 Nov', flag: '🇲🇽', status: 'Upcoming', length: '4.304 km', laps: 71 },
+  { round: 20, name: 'Brazilian GP', location: 'São Paulo, Brazil', date: '6-8 Nov', flag: '🇧🇷', status: 'Upcoming', circuitId: 'interlagos', length: '4.309 km', laps: 71 },
+  { round: 21, name: 'Las Vegas GP', location: 'Las Vegas, USA', date: '19-21 Nov', flag: '🇺🇸', status: 'Upcoming', length: '6.201 km', laps: 50 },
+  { round: 22, name: 'Qatar GP', location: 'Lusail, Qatar', date: '27-29 Nov', flag: '🇶🇦', status: 'Upcoming', length: '5.419 km', laps: 57 },
+  { round: 23, name: 'Abu Dhabi GP', location: 'Yas Marina, UAE', date: '4-6 Dec', flag: '🇦🇪', status: 'Upcoming', length: '5.281 km', laps: 58 }
+];
+
 interface StintInput {
   compound: 'SOFT' | 'MEDIUM' | 'HARD';
   laps: number;
@@ -75,6 +113,9 @@ export default function App() {
   const [hoveredLap, setHoveredLap] = useState<any>(null);
   const [apiOnline, setApiOnline] = useState<boolean | null>(null);
   const [isOutdated, setIsOutdated] = useState(false);
+  const [activeMenu, setActiveMenu] = useState<'home' | 'schedule'>('home');
+  const [standingsTab, setStandingsTab] = useState<'drivers' | 'constructors'>('drivers');
+  const [selectedRoundNum, setSelectedRoundNum] = useState<number>(12);
 
   // 2026 Standings state
   const [standings, setStandings] = useState<any[]>([]);
@@ -566,57 +607,273 @@ export default function App() {
   };
 
   return (
-    <div className="h-screen max-h-screen overflow-hidden f1-grid-bg text-slate-100 font-sans relative flex flex-col no-scrollbar select-none">
-      
-      {/* Dynamic ambient backlights matching selected team */}
-      <div className="glow-orb" style={{ backgroundColor: activeLivery.primary, top: '-250px', left: '-250px' }} />
-      <div className="glow-orb" style={{ backgroundColor: activeLivery.primary, bottom: '-250px', right: '-250px' }} />
-
-      {/* 1. Racing Ticker (Top Banner) */}
-      <div className="w-full bg-[#04060a] text-white border-b border-slate-900 py-1 px-4 text-[9px] font-mono tracking-widest uppercase flex items-center z-50 justify-between h-7 shrink-0">
-        <div className="flex items-center gap-2 overflow-hidden w-2/3">
-          <span className="text-red-500 font-bold animate-pulse">● TRACK MONITOR</span>
-          <div className="animate-marquee whitespace-nowrap text-slate-300">
-            CURRENT GRAND PRIX: {selectedCircuit.displayName.toUpperCase()} • DRS: ENABLED • LIVERY STATE: {activeLivery.name.toUpperCase()} ACTIVE • RADAR REPORT: CLOUD COVER 12% - PRECIPITATION PROBABILITY 0% FOR SESSION DURATION
-          </div>
+    <div className="h-screen max-h-screen overflow-hidden text-slate-100 font-sans relative flex no-scrollbar select-none bg-[#090d16] w-full">
+      {/* Left Sidebar Menu */}
+      <aside className="w-56 bg-[#0a0e17] border-r border-slate-900 flex flex-col h-full shrink-0 z-20">
+        {/* Sidebar Header */}
+        <div className="p-4 border-b border-slate-900 flex items-center gap-2">
+          <span className="bg-[#e10600] text-[10px] font-black tracking-widest px-1.5 py-0.5 rounded text-white italic font-telemetry shrink-0">F1</span>
+          <span className="text-sm font-black italic tracking-tighter text-white font-display uppercase truncate">
+            Strategy Assistant
+          </span>
         </div>
-        <div className="flex items-center gap-3 font-mono text-[9px]">
-          <span className="text-slate-550">CONN_OK: <strong className="text-green-500 font-bold">100%</strong></span>
-          <span className="text-slate-550">LATENCY: <strong className="text-green-500 font-bold">12ms</strong></span>
-        </div>
-      </div>
-
-      {/* Main viewport frame */}
-      <div className="flex-1 flex flex-col p-3 overflow-hidden gap-3 z-10">
         
-        {/* Compact Title Row */}
-        <header className="flex justify-between items-center bg-[#070b13]/60 border border-white/5 px-4 py-2 rounded-xl h-12 glass-panel shrink-0">
-          <div className="flex items-center gap-2">
-            <span className="bg-red-650 text-[8px] font-black tracking-widest px-1.5 py-0.5 rounded text-white italic font-telemetry">F1 ENGINE</span>
-            <h1 className="text-base font-black italic tracking-tighter text-white font-display uppercase flex items-center gap-1.5">
-              PIT-WALL TELEMETRY SYSTEM <span className="font-telemetry font-bold text-[10px]" style={{ color: activeLivery.primary }}>v2.6</span>
-            </h1>
-          </div>
+        {/* Navigation Menu */}
+        <nav className="flex-1 p-3 space-y-1 overflow-y-auto no-scrollbar">
+          {[
+            { id: 'home', name: 'Dashboard Home', icon: '🏠' },
+            { id: 'telemetry', name: 'Live Telemetry', icon: '📊' },
+            { id: 'schedule', name: '2026 Schedule', icon: '📅' },
+            { id: 'driver_standings', name: 'Driver Standings', icon: '🏆' },
+            { id: 'constructor_standings', name: 'Constructor Standings', icon: '🏎️' },
+            { id: 'rag', name: 'GP Knowledge AI', icon: '🤖' }
+          ].map((item) => {
+            const isActive = activeMenu === item.id || 
+              (item.id === 'telemetry' && activeMenu === 'home' && activeTab === 'telemetry') ||
+              (item.id === 'rag' && activeMenu === 'home' && activeTab === 'qa') ||
+              (item.id === 'driver_standings' && activeMenu === 'home' && standingsTab === 'drivers') ||
+              (item.id === 'constructor_standings' && activeMenu === 'home' && standingsTab === 'constructors');
 
-          {/* Quick Stats */}
-          <div className="flex items-center gap-4 text-[9px] font-mono text-slate-400">
-            <span>SELECTED TEAM: <strong style={{ color: activeLivery.primary }}>{activeLivery.name.toUpperCase()}</strong></span>
-            <div className="flex items-center gap-1.5 bg-slate-950/60 px-2 py-0.5 rounded border border-slate-800">
-              <span className={`w-2 h-2 rounded-full ${apiOnline === null ? 'bg-amber-400' : apiOnline ? 'bg-green-500' : 'bg-red-500'} ${apiOnline ? 'animate-pulse shadow-[0_0_6px_rgba(34,197,94,0.6)]' : ''}`}></span>
-              <span className={`font-bold uppercase text-[8px] ${apiOnline === null ? 'text-amber-400' : apiOnline ? 'text-green-400' : 'text-red-400'}`}>
-                {apiOnline === null ? 'SYNCING LINK' : apiOnline ? 'SECURE CONNECT' : 'LINK OFFLINE'}
-              </span>
+            return (
+              <button
+                key={item.id}
+                onClick={() => {
+                  if (item.id === 'telemetry') {
+                    setActiveMenu('home');
+                    setActiveTab('telemetry');
+                  } else if (item.id === 'rag') {
+                    setActiveMenu('home');
+                    setActiveTab('qa');
+                  } else if (item.id === 'driver_standings') {
+                    setActiveMenu('home');
+                    setStandingsTab('drivers');
+                  } else if (item.id === 'constructor_standings') {
+                    setActiveMenu('home');
+                    setStandingsTab('constructors');
+                  } else {
+                    setActiveMenu(item.id as any);
+                  }
+                }}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-bold transition-all text-left cursor-pointer ${
+                  isActive 
+                    ? 'bg-slate-900 text-white font-extrabold shadow-[inset_3px_0_0_0_#e10600]' 
+                    : 'text-slate-400 hover:text-white hover:bg-slate-900/50'
+                }`}
+              >
+                <span>{item.icon}</span>
+                <span>{item.name}</span>
+              </button>
+            );
+          })}
+        </nav>
+        
+        {/* Active Engine Footer */}
+        <div className="p-4 border-t border-slate-900 flex items-center gap-3 bg-[#05070c]">
+          <span className="text-xl">🐂</span>
+          <div className="flex flex-col text-left">
+            <span className="text-[7px] font-mono text-slate-550 uppercase tracking-widest">ACTIVE ENGINE</span>
+            <span className="text-xs font-bold text-white uppercase font-display" style={{ color: activeLivery.primary }}>
+              {activeLivery.name}
+            </span>
+          </div>
+        </div>
+      </aside>
+
+      {/* Main content frame */}
+      <div className="flex-1 flex flex-col h-full overflow-hidden relative">
+        {/* Dynamic ambient backlights matching selected team */}
+        <div className="glow-orb" style={{ backgroundColor: activeLivery.primary, top: '-250px', left: '-250px' }} />
+        <div className="glow-orb" style={{ backgroundColor: activeLivery.primary, bottom: '-250px', right: '-250px' }} />
+
+        {/* 1. Racing Ticker (Top Banner) */}
+        <div className="w-full bg-[#04060a] text-white border-b border-slate-900 py-1 px-4 text-[9px] font-mono tracking-widest uppercase flex items-center z-50 justify-between h-7 shrink-0">
+          <div className="flex items-center gap-2 overflow-hidden w-2/3">
+            <span className="text-red-500 font-bold animate-pulse">● TRACK MONITOR</span>
+            <div className="animate-marquee whitespace-nowrap text-slate-300">
+              CURRENT GRAND PRIX: {selectedCircuit.displayName.toUpperCase()} • DRS: ENABLED • LIVERY STATE: {activeLivery.name.toUpperCase()} ACTIVE • RADAR REPORT: CLOUD COVER 12% - PRECIPITATION PROBABILITY 0% FOR SESSION DURATION
             </div>
           </div>
-        </header>
-
-        {/* Dynamic Telemetry System Warning Alerts */}
-        {error && (
-          <div className="bg-red-950/40 border border-red-900/60 text-red-400 px-4 py-2 rounded-xl font-mono text-[9px] uppercase tracking-widest shrink-0">
-            ⚠️ WARNING // SYSTEM DIAGNOSTIC ERROR REPORT // {error}
+          <div className="flex items-center gap-3 font-mono text-[9px]">
+            <span className="text-slate-555">CONN_OK: <strong className="text-green-500 font-bold">100%</strong></span>
+            <span className="text-slate-555">LATENCY: <strong className="text-green-500 font-bold">12ms</strong></span>
           </div>
-        )}
+        </div>
 
+        {/* Main viewport frame */}
+        <div className="flex-1 flex flex-col p-3 overflow-hidden gap-3 z-10">
+          
+          {/* Compact Title Row */}
+          <header className="flex justify-between items-center bg-[#070b13]/60 border border-white/5 px-4 py-2 rounded-xl h-12 glass-panel shrink-0">
+            <div className="flex items-center gap-2">
+              <span className="bg-red-650 text-[8px] font-black tracking-widest px-1.5 py-0.5 rounded text-white italic font-telemetry">F1 ENGINE</span>
+              <h1 className="text-base font-black italic tracking-tighter text-white font-display uppercase flex items-center gap-1.5">
+                PIT-WALL TELEMETRY SYSTEM <span className="font-telemetry font-bold text-[10px]" style={{ color: activeLivery.primary }}>v2.6</span>
+              </h1>
+            </div>
+
+            {/* Quick Stats */}
+            <div className="flex items-center gap-4 text-[9px] font-mono text-slate-400">
+              <span>SELECTED TEAM: <strong style={{ color: activeLivery.primary }}>{activeLivery.name.toUpperCase()}</strong></span>
+              <div className="flex items-center gap-1.5 bg-slate-950/60 px-2 py-0.5 rounded border border-slate-800">
+                <span className={`w-2 h-2 rounded-full ${apiOnline === null ? 'bg-amber-400' : apiOnline ? 'bg-green-500' : 'bg-red-500'} ${apiOnline ? 'animate-pulse shadow-[0_0_6px_rgba(34,197,94,0.6)]' : ''}`}></span>
+                <span className={`font-bold uppercase text-[8px] ${apiOnline === null ? 'text-amber-400' : apiOnline ? 'text-green-400' : 'text-red-400'}`}>
+                  {apiOnline === null ? 'SYNCING LINK' : apiOnline ? 'SECURE CONNECT' : 'LINK OFFLINE'}
+                </span>
+              </div>
+            </div>
+          </header>
+
+          {/* Dynamic Telemetry System Warning Alerts */}
+          {error && (
+            <div className="bg-red-950/40 border border-red-900/60 text-red-400 px-4 py-2 rounded-xl font-mono text-[9px] uppercase tracking-widest shrink-0">
+              ⚠️ WARNING // SYSTEM DIAGNOSTIC ERROR REPORT // {error}
+            </div>
+          )}
+
+          {/* CONTENT SWITCHER */}
+          {activeMenu === 'schedule' ? (
+            <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-3 overflow-hidden">
+              {/* Left Column GP List (col-span-8) */}
+              <div className="lg:col-span-8 flex flex-col gap-3 overflow-hidden bg-slate-950/40 border border-white/5 rounded-xl p-4 glass-panel">
+                <h2 className="text-sm font-black italic text-slate-200 tracking-wider uppercase font-display border-b border-slate-850 pb-2 flex justify-between items-center shrink-0">
+                  <span>📅 2026 RACE SCHEDULE CALENDAR</span>
+                  <span className="text-[8px] font-mono text-slate-550">23 ROUNDS REGISTERED</span>
+                </h2>
+                <div className="flex-1 overflow-y-auto no-scrollbar space-y-1.5 pr-0.5">
+                  {OFFICIAL_2026_SCHEDULE.map((c) => {
+                    const linkedCircuit = CIRCUITS.find(circuit => circuit.id === c.circuitId);
+                    const isSelected = selectedRoundNum === c.round;
+                    
+                    return (
+                      <div 
+                        key={c.round} 
+                        onClick={() => {
+                          setSelectedRoundNum(c.round);
+                          if (linkedCircuit) {
+                            setSelectedCircuit(linkedCircuit);
+                          }
+                        }}
+                        className={`bg-[#04060c]/40 border rounded-xl p-3 flex items-center justify-between hover:border-red-500/40 hover:bg-slate-900/40 transition-all cursor-pointer group ${isSelected ? 'border-red-550/40 bg-slate-900/20' : 'border-slate-900'}`}
+                      >
+                        <div className="flex items-center gap-3 overflow-hidden">
+                          <span className={`text-xs font-telemetry font-bold bg-red-950/20 px-2.5 py-1 rounded border border-red-900/20 ${c.status === 'Live' ? 'text-green-500 border-green-900/40 bg-green-950/10' : 'text-slate-400 border-slate-800'}`}>
+                            ROUND {c.round}
+                          </span>
+                          <div className="flex flex-col overflow-hidden text-left">
+                            <span className="text-xs font-bold text-slate-200 group-hover:text-white transition-colors">
+                              {c.flag} {c.name}
+                            </span>
+                            <span className="text-[8px] font-mono text-slate-550 uppercase tracking-wide">
+                              {c.location}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4 shrink-0">
+                          <div className="text-right text-[8px] font-mono text-slate-400">
+                            <div>TRACK LENGTH: <span className="text-white font-bold">{c.length}</span></div>
+                            <div>RACE LAPS: <span className="text-white font-bold">{c.laps} LAPS</span></div>
+                          </div>
+                          
+                          <div className="w-16 h-10 bg-slate-950/60 rounded flex flex-col items-center justify-center border border-slate-900 shrink-0 select-none">
+                            <span className={`text-[7px] font-mono font-bold uppercase tracking-wider ${
+                              c.status === 'Completed' ? 'text-slate-500' :
+                              c.status === 'Postponed' ? 'text-red-500 font-extrabold' :
+                              c.status === 'Live' ? 'text-green-400 animate-pulse font-extrabold' :
+                              'text-amber-500'
+                            }`}>
+                              {c.status}
+                            </span>
+                            <span className="text-[8px] font-telemetry font-bold text-white mt-0.5">
+                              {c.date}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Right Column Focus Details (col-span-4) */}
+              <div className="lg:col-span-4 flex flex-col gap-3 overflow-hidden">
+                <section className="bg-slate-950/40 border border-white/5 rounded-xl p-4 flex flex-col gap-4 glass-panel flex-1 justify-between text-left">
+                  {(() => {
+                    const selectedRound = OFFICIAL_2026_SCHEDULE.find(r => r.round === selectedRoundNum) || OFFICIAL_2026_SCHEDULE[11];
+                    const isSimulateAvailable = !!selectedRound.circuitId;
+                    
+                    return (
+                      <>
+                        <div>
+                          <h2 className="text-[10px] font-black italic text-slate-200 tracking-wider uppercase font-display border-b border-slate-850 pb-1.5 mb-3">
+                            🏁 CURRENT FOCUS ROUND
+                          </h2>
+                          <div className="flex items-center gap-3 bg-[#0d121f]/60 p-3 rounded-xl border border-slate-900">
+                            <span className="text-3xl">{selectedRound.flag}</span>
+                            <div className="flex flex-col text-left">
+                              <span className="text-sm font-bold text-white">{selectedRound.name.toUpperCase()}</span>
+                              <span className="text-[9px] font-mono text-slate-400">{selectedRound.location}</span>
+                            </div>
+                          </div>
+                          
+                          <div className="mt-4 space-y-2 text-[10px] font-mono text-slate-350 text-left">
+                            <div className="flex justify-between border-b border-slate-900 pb-1">
+                              <span>ROUND NUMBER:</span>
+                              <span className="text-white font-bold">ROUND {selectedRound.round}</span>
+                            </div>
+                            <div className="flex justify-between border-b border-slate-900 pb-1">
+                              <span>TRACK LENGTH:</span>
+                              <span className="text-white font-bold">{selectedRound.length}</span>
+                            </div>
+                            <div className="flex justify-between border-b border-slate-900 pb-1">
+                              <span>TOTAL LAPS:</span>
+                              <span className="text-white font-bold">{selectedRound.laps} LAPS</span>
+                            </div>
+                            <div className="flex justify-between border-b border-slate-900 pb-1">
+                              <span>SESSION DATE:</span>
+                              <span className="text-white font-bold">{selectedRound.date}, 2026</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col gap-2">
+                          <div className="bg-slate-950 rounded-xl p-4 flex flex-col items-center justify-center border border-slate-900 h-44 text-center select-none relative overflow-hidden">
+                            <span className="text-3xl animate-pulse">🏎️</span>
+                            <span className="text-[9px] font-mono text-slate-550 uppercase tracking-widest mt-3">2026 TIMETABLE SYSTEM</span>
+                            <span className="text-xs font-bold text-white mt-1 uppercase font-display">{selectedRound.name}</span>
+                            <span className={`text-[8px] font-mono font-bold px-2 py-0.5 rounded border mt-2 uppercase ${
+                              selectedRound.status === 'Completed' ? 'bg-slate-950 border-slate-800 text-slate-400' :
+                              selectedRound.status === 'Postponed' ? 'bg-red-950/25 border-red-900/30 text-red-500' :
+                              selectedRound.status === 'Live' ? 'bg-green-950/25 border-green-900/30 text-green-400 animate-pulse' :
+                              'bg-amber-950/25 border-amber-900/30 text-amber-500'
+                            }`}>
+                              {selectedRound.status === 'Live' ? '● SESSION LIVE' : selectedRound.status}
+                            </span>
+                          </div>
+                          
+                          <button 
+                            onClick={() => {
+                              const linked = CIRCUITS.find(c => c.id === selectedRound.circuitId);
+                              if (linked) {
+                                setSelectedCircuit(linked);
+                                setActiveMenu('home');
+                              }
+                            }}
+                            className={`w-full py-3 text-white font-bold tracking-widest text-[9px] uppercase rounded-lg transition-all font-display ${isSimulateAvailable ? 'cursor-pointer hover:opacity-90' : 'opacity-40 cursor-not-allowed'}`}
+                            style={{ backgroundColor: activeLivery.primary, color: activeLivery.secondary }}
+                            disabled={!isSimulateAvailable}
+                          >
+                            {isSimulateAvailable ? 'SELECT & LOAD STRATEGY CONTROLLER' : 'SIMULATION ENGINE OFFLINE'}
+                          </button>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </section>
+              </div>
+            </div>
+          ) : (
+            /* Normal Dashboard Layout */
+            <>
         {/* 3-Column viewport layout */}
         <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-3 overflow-hidden">
           
@@ -769,18 +1026,11 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="col-span-5 bg-slate-950/60 border border-slate-900 rounded-xl p-1.5 flex items-center justify-center relative overflow-hidden">
-                    <svg viewBox="0 0 100 100" className="w-16 h-16 text-slate-800">
-                      <path 
-                        d={selectedCircuit.path} 
-                        fill="none" 
-                        stroke={activeLivery.primary} 
-                        strokeWidth="4" 
-                        strokeLinecap="round" 
-                        strokeLinejoin="round" 
-                        style={{ filter: `drop-shadow(0 0 4px ${activeLivery.primary})` }}
-                      />
-                    </svg>
+                  <div className="col-span-5 bg-slate-950/60 border border-slate-900 rounded-xl p-2 flex flex-col justify-center text-left">
+                    <span className="text-[6px] font-mono text-slate-500 uppercase">TRACK TYPE</span>
+                    <span className="text-[9px] font-black text-white mt-0.5 uppercase tracking-tight truncate">{selectedCircuit.type}</span>
+                    <span className="text-[6px] font-mono text-slate-500 uppercase mt-2">TRACK TEMP</span>
+                    <span className="text-[9px] font-black text-amber-500 mt-0.5">{selectedCircuit.temp}°C</span>
                   </div>
                 </div>
 
@@ -1104,8 +1354,12 @@ export default function App() {
             )}
           </div>
 
-        </div>
+
+            </div>
+          </>
+        )}
       </div>
     </div>
-  );
+  </div>
+);
 }

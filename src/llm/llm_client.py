@@ -18,11 +18,11 @@ class OpenAIEngine:
             try:
                 from openai import OpenAI   #type: ignore
                 self.client = OpenAI(api_key=self.api_key)
-                print("✅ OpenAI API client initialized")
+                print("[OK] OpenAI API client initialized")
             except ImportError:
-                print("⚠️ openai package not installed. Falling back to offline engine.")
+                print("[WARN] openai package not installed. Falling back to offline engine.")
         else:
-            print("⚠️ OPENAI_API_KEY not found. Using offline context extraction engine.")
+            print("[WARN] OPENAI_API_KEY not found. Using offline context extraction engine.")
 
     def _extract_context_and_question(self, prompt: str) -> Tuple[str, str]:
         """Extract verified context and user question from formatted prompt."""

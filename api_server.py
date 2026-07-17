@@ -127,17 +127,17 @@ async def get_standings():
                         })
                 return {"status": "success", "data": standings}
     except Exception as e:
-        print(f"⚠️ Standings scraping failed: {e}")
+        print(f"[WARN] Standings scraping failed: {e}")
         
     fallback_standings = [
-        {"position": "1", "name": "Kimi Antonelli", "code": "ANT", "nationality": "ITA", "team": "Mercedes", "points": "171"},
-        {"position": "2", "name": "George Russell", "code": "RUS", "nationality": "GBR", "team": "Mercedes", "points": "131"},
-        {"position": "3", "name": "Lewis Hamilton", "code": "HAM", "nationality": "GBR", "team": "Ferrari", "points": "125"},
-        {"position": "4", "name": "Oscar Piastri", "code": "PIA", "nationality": "AUS", "team": "McLaren", "points": "80"},
-        {"position": "5", "name": "Lando Norris", "code": "NOR", "nationality": "GBR", "team": "McLaren", "points": "79"},
-        {"position": "6", "name": "Charles Leclerc", "code": "LEC", "nationality": "MON", "team": "Ferrari", "points": "79"},
-        {"position": "7", "name": "Max Verstappen", "code": "VER", "nationality": "NED", "team": "Red Bull Racing", "points": "73"},
-        {"position": "8", "name": "Isack Hadjar", "code": "HAD", "nationality": "FRA", "team": "Red Bull Racing", "points": "42"},
+        {"position": "1", "name": "Kimi Antonelli", "code": "ANT", "nationality": "ITA", "team": "Mercedes", "points": "179"},
+        {"position": "2", "name": "George Russell", "code": "RUS", "nationality": "GBR", "team": "Mercedes", "points": "154"},
+        {"position": "3", "name": "Lewis Hamilton", "code": "HAM", "nationality": "GBR", "team": "Ferrari", "points": "147"},
+        {"position": "4", "name": "Charles Leclerc", "code": "LEC", "nationality": "MON", "team": "Ferrari", "points": "108"},
+        {"position": "5", "name": "Lando Norris", "code": "NOR", "nationality": "GBR", "team": "McLaren", "points": "97"},
+        {"position": "6", "name": "Oscar Piastri", "code": "PIA", "nationality": "AUS", "team": "McLaren", "points": "82"},
+        {"position": "7", "name": "Max Verstappen", "code": "VER", "nationality": "NED", "team": "Red Bull Racing", "points": "76"},
+        {"position": "8", "name": "Isack Hadjar", "code": "HAD", "nationality": "FRA", "team": "Red Bull Racing", "points": "52"},
         {"position": "9", "name": "Pierre Gasly", "code": "GAS", "nationality": "FRA", "team": "Alpine", "points": "41"},
         {"position": "10", "name": "Liam Lawson", "code": "LAW", "nationality": "NZL", "team": "Racing Bulls", "points": "30"},
         {"position": "11", "name": "Oliver Bearman", "code": "BEA", "nationality": "GBR", "team": "Haas F1 Team", "points": "18"},
